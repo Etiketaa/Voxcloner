@@ -1,0 +1,6 @@
+{
+  "name": "VoxCloner Studio - Voces Virales TikTok & Reels",
+  "description": "Estudio profesional de clonación y síntesis de voces neuronales para guiones de TikTok y videos virales con descarga MP3, cola de renderizado masivo, modo offline PWA y cifrado seguro.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
