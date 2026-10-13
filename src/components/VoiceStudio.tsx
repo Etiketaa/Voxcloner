@@ -156,16 +156,26 @@ export const VoiceStudio: React.FC<VoiceStudioProps> = ({
       const useNeural = isOnline && engineMode === 'neural' && (currentVoice.provider === 'gemini' || currentVoice.provider === 'cloned');
 
       if (useNeural) {
-        const voiceName = currentVoice.geminiVoice || 'Kore';
+        const isCloned = currentVoice.isCloned || currentVoice.provider === 'cloned';
+        const voiceName = currentVoice.geminiVoice || (currentVoice.cloneSettings?.baseVoice as any) || 'Kore';
+        const clonePrompt = currentVoice.cloneSettings?.stylePrompt;
+        const style = clonePrompt
+          ? `${clonePrompt}. Expressive vocal delivery with ${settings.emphasis} cadence.`
+          : `TikTok viral voice with ${settings.emphasis} delivery`;
+
         const res = await fetch('/api/tts/generate', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             text: script,
             voiceName,
-            style: `TikTok viral voice with ${settings.emphasis} delivery`,
-            speed: settings.speed,
-            pitch: settings.pitch,
+            style,
+            speed: isCloned && currentVoice.cloneSettings?.timbreFactor
+              ? Math.max(0.7, Math.min(1.5, settings.speed * currentVoice.cloneSettings.timbreFactor))
+              : settings.speed,
+            pitch: isCloned && currentVoice.cloneSettings?.pitchShift
+              ? settings.pitch + currentVoice.cloneSettings.pitchShift
+              : settings.pitch,
             emphasis: settings.emphasis,
             format: settings.format,
             bitrate: settings.bitrate,
@@ -337,7 +347,14 @@ export const VoiceStudio: React.FC<VoiceStudioProps> = ({
                 {currentVoice.gender === 'female' ? 'F' : 'M'}
               </span>
               <div className="min-w-0">
-                <p className="text-[11px] text-slate-400 leading-none">Voz asignada</p>
+                <p className="text-[11px] text-slate-400 leading-none flex items-center gap-1.5">
+                  <span>Voz asignada</span>
+                  {currentVoice.isCloned && (
+                    <span className="text-[9px] px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-300 font-bold border border-purple-500/30">
+                      Clon Personalizado
+                    </span>
+                  )}
+                </p>
                 <p className="text-xs font-bold text-white truncate group-hover:text-cyan-300 transition">
                   {currentVoice.name}
                 </p>

@@ -3,6 +3,7 @@ import JSZip from 'jszip';
 import { QueueTask, VoiceProfile, AudioSettings } from '../types/models';
 import { synthesizeOfflineSpeech, wavToMp3 } from '../utils/audioEncoder';
 import { notifyQueueComplete } from '../utils/notifications';
+import { loadClonedVoices } from '../utils/storage';
 
 export function useQueueManager(isOnline: boolean) {
   const [tasks, setTasks] = useState<QueueTask[]>(() => {
@@ -133,15 +134,39 @@ export function useQueueManager(isOnline: boolean) {
           if (useNeuralBackend) {
             setTasks((t) => t.map((item) => (item.id === taskId ? { ...item, progress: 45 } : item)));
 
+            let chosenVoiceName = 'Kore';
+            let styleDescription = `Viral TikTok voice with ${pendingTask.settings.emphasis} energy`;
+            let speedMod = pendingTask.settings.speed;
+            let pitchMod = pendingTask.settings.pitch;
+
+            if (pendingTask.voiceProvider === 'cloned') {
+              const allCloned = loadClonedVoices();
+              const matched = allCloned.find((v) => v.id === pendingTask.voiceId);
+              if (matched) {
+                chosenVoiceName = matched.geminiVoice || matched.cloneSettings?.baseVoice || 'Kore';
+                if (matched.cloneSettings?.stylePrompt) {
+                  styleDescription = `${matched.cloneSettings.stylePrompt}. Delivery: ${pendingTask.settings.emphasis} cadence.`;
+                }
+                if (matched.cloneSettings?.pitchShift) {
+                  pitchMod += matched.cloneSettings.pitchShift;
+                }
+                if (matched.cloneSettings?.timbreFactor) {
+                  speedMod = Math.max(0.7, Math.min(1.5, speedMod * matched.cloneSettings.timbreFactor));
+                }
+              }
+            } else {
+              chosenVoiceName = pendingTask.voiceId.replace('gemini-', '').charAt(0).toUpperCase() + pendingTask.voiceId.replace('gemini-', '').slice(1);
+            }
+
             const res = await fetch('/api/tts/generate', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 text: pendingTask.script,
-                voiceName: pendingTask.voiceId.replace('gemini-', '').charAt(0).toUpperCase() + pendingTask.voiceId.replace('gemini-', '').slice(1),
-                style: `Viral TikTok voice with ${pendingTask.settings.emphasis} energy`,
-                speed: pendingTask.settings.speed,
-                pitch: pendingTask.settings.pitch,
+                voiceName: chosenVoiceName,
+                style: styleDescription,
+                speed: speedMod,
+                pitch: pitchMod,
                 emphasis: pendingTask.settings.emphasis,
                 format: pendingTask.settings.format,
                 bitrate: pendingTask.settings.bitrate,
